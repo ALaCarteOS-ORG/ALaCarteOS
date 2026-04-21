@@ -1,0 +1,12 @@
+/
+├── .env                # (Ignorat de git)
+├── .env.example        # (Modelul pentru colegi)
+├── .gitignore          # (Regulile de ignorare)
+├── README.md           # (Documentația proiectului)
+├── /src                # Codul sursă
+│   ├── /components     # Butoane, Carduri, Chatbot UI
+│   ├── /pages          # Meniu, Login, Dashboard Staff
+│   ├── /lib            # supabaseClient.js, openai.js
+│   └── /styles         # CSS-uri
+├── /public             # Imagini, logo-uri
+└── /database           # schema.sql (cel pe care l-am făcut)
