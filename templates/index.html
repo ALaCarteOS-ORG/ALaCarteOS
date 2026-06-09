@@ -27,6 +27,17 @@
                 <p class="text-muted" style="letter-spacing: 1px; font-size: 0.9rem;">SISTEM DE OPERARE PENTRU RESTAURANTE</p>
             </div>
 
+            <!-- Afișare mesaje de eroare/succes -->
+            {% if messages %}
+                <div class="alert-container mb-3">
+                    {% for message in messages %}
+                        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} text-center p-2 mb-2" style="font-size: 0.9rem; border-radius: 8px;">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
             <!-- Selectorul de Rol -->
             <div class="btn-group d-flex role-selector" role="group">
                 <input type="radio" class="btn-check" name="roleType" id="roleUser" value="user" checked autocomplete="off">
@@ -52,7 +63,7 @@
                     <p class="text-muted mb-0" style="font-size: 0.9rem;">Deschide camera telefonului și scanează codul QR aflat pe masa ta pentru a accesa meniul instant.</p>
                     
                     <!-- Buton de DEMO pentru facultate (simuleaza scanarea) -->
-                    <button type="button" class="btn btn-sm btn-outline-light mt-3" onclick="window.location.href='/meniu/'">[Demo] Simulează Scanare</button>
+                    <button type="button" class="btn btn-sm btn-outline-light mt-3" onclick="window.location.href='{% url 'meniu_masa' nr_masa=4 %}'">[Demo] Scanează Masa 4</button>
                 </div>
 
                 <!-- Fallback: Introducere manuala (ascuns initial) -->
@@ -68,14 +79,15 @@
             </form>
 
             <!-- 2. FORMULAR: STAFF -->
-            <form id="formStaff" class="auth-form d-none" action="/staff/" method="GET">
+            <form id="formStaff" class="auth-form d-none" action="{% url 'login_staff' %}" method="POST">
+                {% csrf_token %}
                 <div class="mb-4">
-                    <label class="form-label">ID Angajat</label>
-                    <input type="text" class="form-control" placeholder="Ex: OSP-102" required>
+                    <label class="form-label">Username</label>
+                    <input type="text" class="form-control" name="username" placeholder="Ex: ion_ospatar" required>
                 </div>
                 <div class="mb-4">
                     <label class="form-label">Parolă</label>
-                    <input type="password" class="form-control" placeholder="••••••••" required>
+                    <input type="password" class="form-control" name="password" placeholder="••••••••" required>
                 </div>
                 <button type="submit" class="btn btn-elegant w-100">Log in Staff</button>
             </form>

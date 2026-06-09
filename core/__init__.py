@@ -1,0 +1,1 @@
+# Fereastra goala necesara pentru ca Python sa recunoasca folderul

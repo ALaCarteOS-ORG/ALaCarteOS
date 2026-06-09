@@ -125,10 +125,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Preluam tokenul de securitate CSRF din HTML
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
             
-            // Momentan simulam masa, pana legam codul QR. Ex: Preluam din URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const masa = urlParams.get('masa') || 'La Pachet / Necunoscut';
-
+            // Preluăm ID-ul mesei din selectorul manual din cos
+            const masaSelector = document.getElementById('masa-selector');
+            const masaId = masaSelector && masaSelector.value !== "" ? masaSelector.value : null;
+            
             btnCheckout.innerText = 'Se trimite...';
             btnCheckout.disabled = true;
 
@@ -139,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': csrfToken
                     },
-                    body: JSON.stringify({ cart: cart, masa: masa })
+                    body: JSON.stringify({ cart: cart, masa_id: masaId })
                 });
                 const data = await response.json();
                 
