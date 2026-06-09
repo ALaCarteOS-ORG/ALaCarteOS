@@ -1,0 +1,178 @@
+/* ==========================================================================
+   A La Carte OS - KDS (Kitchen Display System) Styles
+   ========================================================================== */
+
+:root {
+    /* Culori de Brand & Layout */
+    --nav-bg: #0a0a0a;
+    --accent-gold: #dcb37b;
+    --accent-gold-muted: #c49d68;
+    --bg-main: #fcfbf9; 
+    --bg-card: #ffffff;
+    --text-dark: #1a1a1a;
+    --text-muted: #6e6b66;
+    
+    /* Statusuri Rafinate (Fine Dining Colors) */
+    --status-urgent: #8b1e1e; /* Burgundy */
+    --status-prep: #b57a14;   /* Amber */
+    --status-ready: #34523a;  /* Sage Green */
+    
+    --border-subtle: #e8e6e1;
+}
+
+body {
+    font-family: 'Lato', sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-dark);
+    margin: 0; 
+    padding-bottom: 80px;
+}
+
+.brand-font { 
+    font-family: 'Playfair Display', serif; 
+}
+
+/* NAVBAR DARK */
+.kitchen-navbar {
+    background-color: var(--nav-bg);
+    border-bottom: 1px solid rgba(220, 179, 123, 0.4);
+    padding: 0.8rem 2rem;
+    color: white;
+    position: sticky; 
+    top: 0; 
+    z-index: 1000;
+}
+
+/* OVERRIDE BOOTSTRAP BADGES PENTRU ELEGANTA */
+.badge-urgent { background-color: var(--status-urgent); color: white; border-radius: 2px; font-weight: 700; letter-spacing: 1px; padding: 5px 8px; font-size: 0.7rem; }
+.badge-prep { background-color: #fcf4e3; color: var(--status-prep); border: 1px solid var(--status-prep); border-radius: 2px; font-weight: 700; letter-spacing: 1px; padding: 4px 8px; font-size: 0.7rem; }
+.badge-ai { background-color: var(--nav-bg); color: var(--accent-gold); border: 1px solid var(--accent-gold); border-radius: 2px; font-weight: 700; letter-spacing: 1px; padding: 3px 8px; font-size: 0.65rem; }
+
+/* CARDURI */
+.order-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+    border-radius: 4px;
+    padding: 1.5rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.allergy-warning {
+    background-color: #fcf0f0;
+    color: var(--status-urgent);
+    border: 1px solid var(--status-urgent);
+    font-weight: 900;
+    font-size: 0.7rem;
+    letter-spacing: 0.5px;
+    padding: 4px 8px;
+    border-radius: 2px;
+    animation: smooth-alert 2.5s ease-in-out infinite;
+}
+
+@keyframes smooth-alert {
+    0% { box-shadow: 0 0 0 0 rgba(139, 30, 30, 0.2); }
+    50% { box-shadow: 0 0 0 4px rgba(139, 30, 30, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(139, 30, 30, 0); }
+}
+
+/* AI ASSISTANT BOX - Rafinat */
+.ai-timing-box {
+    background-color: #fdfdfc;
+    border: 1px solid var(--border-subtle);
+    border-left: 3px solid var(--accent-gold);
+    padding: 12px;
+    border-radius: 2px;
+    margin-top: 15px;
+    font-size: 0.85rem;
+    position: relative;
+}
+
+/* BUTOANE CUSTOM KDS */
+.btn-kds {
+    width: 100%;
+    padding: 12px;
+    font-weight: 900;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    border-radius: 2px;
+    border: none;
+    transition: all 0.2s;
+}
+
+.btn-start {
+    background-color: var(--nav-bg);
+    color: var(--accent-gold);
+    border: 1px solid var(--nav-bg);
+}
+.btn-start:hover { 
+    background-color: #1a1a1a; 
+    color: white; 
+}
+
+.btn-finish {
+    background-color: var(--status-ready);
+    color: white;
+}
+.btn-finish:hover { 
+    background-color: #2b4430; 
+}
+
+/* PERSISTENT PANEL JOS */
+.persistent-stats-panel {
+    position: fixed; 
+    bottom: 0; 
+    left: 0; 
+    width: 100%;
+    background-color: var(--nav-bg); 
+    color: white;
+    border-top: 1px solid var(--accent-gold);
+    box-shadow: 0 -5px 25px rgba(0,0,0,0.15); 
+    z-index: 1100;
+    transition: height 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    height: 60px; 
+}
+
+.persistent-stats-panel.expanded { 
+    height: 50vh; 
+    background-color: var(--bg-card); 
+    color: var(--text-dark); 
+}
+
+.stats-header { 
+    height: 60px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    padding: 0 2rem; 
+    cursor: pointer; 
+}
+
+.expanded .stats-header { 
+    background-color: var(--bg-main); 
+    border-bottom: 1px solid var(--border-subtle); 
+    color: var(--text-dark); 
+}
+
+.stats-content { 
+    padding: 2rem; 
+    opacity: 0; 
+    visibility: hidden; 
+    transition: opacity 0.3s; 
+    overflow-y: auto; 
+    max-height: calc(50vh - 60px); 
+}
+.expanded .stats-content { 
+    opacity: 1; 
+    visibility: visible; 
+}
+
+/* SWITCH PENTRU MODULUL 86 */
+.form-check-input:checked { 
+    background-color: var(--status-urgent); 
+    border-color: var(--status-urgent); 
+}

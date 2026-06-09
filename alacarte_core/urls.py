@@ -6,6 +6,6 @@ urlpatterns = [
     path('', views.pagina_autentificare, name='autentificare'), # Pagina principala
     path('admin/', admin.site.urls),
     path('meniu/', views.pagina_meniu),
-    path('bucatarie/', views.dashboard_bucatarie),
+    path('staff/', views.dashboard_staff, name='staff_dashboard'),
     path('plaseaza-comanda/', views.plaseaza_comanda),
 ]

@@ -6,12 +6,12 @@ from django.db import transaction
 from .models import Produs, Comanda, ElementComanda
 
 @login_required # Doar cei logați pot vedea
-def dashboard_bucatarie(request):
-    # Verificăm dacă e bucătar
-    if request.user.groups.filter(name='Bucatar').exists() or request.user.is_superuser:
-        return HttpResponse("Salut, Chef! Aici vor fi comenzile de gătit.")
+def dashboard_staff(request):
+    # Verificăm dacă face parte din staff (am lăsat și grupul Bucatar pentru compatibilitate cu setările vechi)
+    if request.user.groups.filter(name='Staff').exists() or request.user.groups.filter(name='Bucatar').exists() or request.user.is_superuser:
+        return render(request, 'staff.html')
     else:
-        return HttpResponse("N-ai voie aici, doar bucătarii intră în bucătărie!", status=403)
+        return HttpResponse("Acces interzis! Doar personalul autorizat are acces.", status=403)
 
 def pagina_autentificare(request):
     return render(request, 'index.html')
