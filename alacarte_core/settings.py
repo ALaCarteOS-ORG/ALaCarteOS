@@ -126,3 +126,6 @@ STATICFILES_DIRS = [
     BASE_DIR / 'static',
     BASE_DIR / 'src', # Adăugat pentru ca Django să citească și scripturile din folderul src
 ]
+
+# Redirecționează utilizatorii nelogați către pagina principală (autentificare)
+LOGIN_URL = '/'

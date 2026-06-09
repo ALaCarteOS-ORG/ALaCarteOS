@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 class Produs(models.Model):
     nume = models.CharField(max_length=100)
@@ -27,3 +28,16 @@ class ElementComanda(models.Model):
 
     def __str__(self):
         return f"{self.cantitate} x {self.produs.nume}"
+
+class ProfilStaff(models.Model):
+    ROLURI = (
+        ('ospatar', 'Ospătar'),
+        ('bucatar', 'Bucătar'),
+        ('admin', 'Admin'),
+    )
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profil_staff')
+    nume_angajat = models.CharField(max_length=100)
+    rol = models.CharField(max_length=20, choices=ROLURI)
+
+    def __str__(self):
+        return f"{self.nume_angajat} - {self.get_rol_display()}"
