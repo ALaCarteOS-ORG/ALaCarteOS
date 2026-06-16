@@ -10,5 +10,6 @@ urlpatterns = [
     path('meniu/masa/<int:nr_masa>/', views.pagina_meniu, name='meniu_masa'),
     path('bucatarie/', views.dashboard_staff, name='staff_dashboard'),
     path('plaseaza-comanda/', views.plaseaza_comanda),
-    path('schimba-status/<int:comanda_id>/', views.schimba_status_comanda),
+    path('schimba-status/<int:id>/', views.schimba_status),
+    path('ai-recomandare/', views.ai_recomandare, name='ai_recomandare'),
 ]

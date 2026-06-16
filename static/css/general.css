@@ -143,3 +143,20 @@ h1, h2, h3, h4, h5, .brand-font {
 .elegant-input-group .form-control::placeholder {
     color: var(--text-muted);
 }
+
+/* --- NOU: Animație de pulsare pentru butonul Ospătarului Virtual --- */
+@keyframes pulse-gold {
+    0% { box-shadow: 0 0 0 0 rgba(220, 179, 123, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(220, 179, 123, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 179, 123, 0); }
+}
+
+.ai-pulse-btn {
+    animation: pulse-gold 2s infinite;
+}
+
+.ai-pulse-btn:hover {
+    animation: none;
+    background-color: var(--accent-gold) !important;
+    color: var(--primary-dark) !important;
+}

@@ -11,7 +11,7 @@ config.json
 # Baze de date locale 
 *.db
 *.sqlite
-.env
+db.sqlite3
 
 # Sisteme de operare & IDE-uri
 .DS_Store
@@ -19,18 +19,13 @@ config.json
 .idea/
 npm-debug.log*
 
-# Python 
+# Python / Django
 __pycache__/
 *.py[cod]
 venv/
 .venv/
-\
+*.log
 
-
-.env
-__pycache__/
-*.py[cod]
-db.sqlite3
+# Fisiere de Productie si Upload
 media/
-venv/
-.vscode/
+staticfiles/

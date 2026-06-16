@@ -17,7 +17,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 import dj_database_url
 import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
 
 # Quick-start development settings - unsuitable for production
@@ -81,8 +83,7 @@ WSGI_APPLICATION = 'alacarte_core.wsgi.application'
 
 DATABASES = {
     'default': dj_database_url.config(
-        # Înlocuiește link-ul de mai jos cu cel pe care l-ai copiat, și pune parola MDSmecher12%21
-        default='postgresql://postgres.hebmbohhyvhalleodpnd:MDSmecher12%21@aws-1-eu-west-3.pooler.supabase.com:5432/postgres',
+        default=os.environ.get('DATABASE_URL'),
         conn_max_age=600,
     )
 }

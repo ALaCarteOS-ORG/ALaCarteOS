@@ -1,4 +1,5 @@
 import json
+import os
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
@@ -8,14 +9,23 @@ from django.db import transaction
 from django.db.models import F
 from .models import Produs, Comanda, ElementComanda, Masa, Ingredient
 
-@login_required # Doar cei logați pot vedea
+# === IMPORTURI NOI PENTRU GEMINI SI .ENV ===
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
+from google import genai
+from dotenv import load_dotenv
+
+# 1. Încărcăm variabilele de mediu (inclusiv GEMINI_API_KEY)
+load_dotenv()
+
+# 2. Configurăm API-ul Google Gemini
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+
+@login_required
 def dashboard_staff(request):
-    # Verificăm dacă face parte din staff (am lăsat și grupul Bucatar pentru compatibilitate cu setările vechi)
     if request.user.is_staff or request.user.is_superuser or request.user.groups.filter(name__in=['Staff', 'Bucatar']).exists():
-        # Preluăm comenzile active și aducem optimizat informațiile despre Masă pe ecranul KDS
         comenzi = Comanda.objects.exclude(status__in=['servita', 'platita', 'anulata']).order_by('-urgenta', 'data_creare').select_related('masa').prefetch_related('elemente__produs')
         
-        # Extragem ingredientele aflate la limita stocului și produsele pentru Modulul 86
         ingrediente_alerta = Ingredient.objects.filter(cantitate_stoc__lte=F('prag_alerta')).order_by('cantitate_stoc')
         produse_meniu = Produs.objects.all().order_by('nume')
         
@@ -31,7 +41,6 @@ def login_staff(request):
         username = request.POST.get('username')
         parola = request.POST.get('password')
         
-        # Verificăm datele în baza de date
         user = authenticate(request, username=username, password=parola)
         
         if user is not None:
@@ -47,87 +56,112 @@ def login_staff(request):
 
 def pagina_meniu(request, nr_masa=None):
     produse = Produs.objects.filter(disponibil=True)
-    mese = Masa.objects.all().order_by('nr_masa') # Trimitem lista de mese pentru selectia manuala
-    masa = None
-    if nr_masa:
-        try:
-            # Căutăm masa după numărul ei
-            masa = Masa.objects.get(nr_masa=nr_masa)
-        except Masa.DoesNotExist:
-            # Aici poți decide ce faci dacă masa nu există: afișezi o eroare, redirecționezi etc.
-            # Momentan, o vom ignora și va fi tratată ca o comandă "la pachet".
-            pass
-    return render(request, 'meniu.html', {'produse': produse, 'masa': masa, 'mese': mese})
+    mese = Masa.objects.all()
+    return render(request, 'meniu.html', {'produse': produse, 'mese': mese})
 
+@csrf_exempt
+@require_POST
+def ai_recomandare(request):
+    try:
+        data = json.loads(request.body)
+        cart_items = data.get('cart', [])
+        
+        if not cart_items:
+            return JsonResponse({'error': 'Coș gol'}, status=400)
+        
+        nume_produse_cos = [item['name'] for item in cart_items]
+        id_produse_cos = [int(item['id']) for item in cart_items]
+        
+        produse_disponibile = Produs.objects.filter(disponibil=True).exclude(id__in=id_produse_cos)
+        
+        if not produse_disponibile.exists():
+             return JsonResponse({'error': 'Nu sunt alte produse disponibile'}, status=404)
+             
+        meniu_text = ", ".join([f"ID: {p.id} | Nume: {p.nume} | Tip: {p.tip_produs}" for p in produse_disponibile])
+        
+        # 3. Prompt-ul actualizat pentru Gemini - îi cerem explicit să nu folosească formatare
+        prompt = (
+            f"Sunt un somelier și ospătar virtual de top într-un restaurant fine-dining. "
+            f"Clientul a adăugat în coș următoarele preparate: {', '.join(nume_produse_cos)}. "
+            f"Alege UN SINGUR preparat complementar din acest meniu disponibil: [{meniu_text}]. "
+            f"Dacă are friptură, sugerează vin roșu. Dacă are pizza, o bere artizanală, etc. "
+            f"Răspunde STRICT cu un obiect JSON valid, fără formatare markdown, fără backticks (```), "
+            f"doar structura brută, astfel: "
+            f"{{\"id_produs\": ID_ales, \"motiv\": \"Argument scurt de ce se potrivește\"}}"
+        )
+        
+        # 4. Generăm răspunsul cu modelul rapid de la Gemini
+        response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+        
+        # 5. Curățăm textul (evităm eroarea clasică de formatare a AI-urilor cu ```json)
+        raw_text = response.text.strip()
+        if "```json" in raw_text:
+            raw_text = raw_text.split("```json").split("```")[0].strip()
+        elif "```" in raw_text:
+            raw_text = raw_text.split("```")[1].split("```").strip()
+            
+        # 6. Extragem datele cu sistem de protecție la erori
+        try:
+            rezultat_ai = json.loads(raw_text)
+        except json.JSONDecodeError:
+            # Dacă AI-ul s-a încurcat și nu a returnat JSON, alegem primul produs disponibil
+            prod_final = produse_disponibile.first()
+            return JsonResponse({
+                'recomandare': f"Pentru a echilibra perfect comanda, vă recomandăm să adăugați {prod_final.nume}.",
+                'produs_recomandat': {'id': str(prod_final.id), 'nume': prod_final.nume, 'pret': float(prod_final.pret)}
+            })
+        
+        prod_id = rezultat_ai.get('id_produs')
+        motiv = rezultat_ai.get('motiv', 'O alegere excelentă!')
+        
+        try:
+            prod_final = Produs.objects.get(id=prod_id)
+        except (Produs.DoesNotExist, ValueError, TypeError):
+            prod_final = produse_disponibile.first()
+        
+        return JsonResponse({
+            'recomandare': motiv,
+            'produs_recomandat': {'id': str(prod_final.id), 'nume': prod_final.nume, 'pret': float(prod_final.pret)}
+        })
+        
+    except Exception as e:
+        print(f"Eroare AI API: {str(e)}") # Pentru vizibilitate în terminal
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@require_POST
 def plaseaza_comanda(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            cart_items = data.get('cart', [])
-            masa_id = data.get('masa_id') # Preluăm ID-ul mesei din cererea JavaScript
+    try:
+        data = json.loads(request.body)
+        cart_items = data.get('cart', [])
+        masa_id = data.get('masa_id')
+        
+        if not cart_items:
+            return JsonResponse({'error': 'Coș gol'}, status=400)
             
-            if not cart_items:
-                return JsonResponse({'error': 'Coșul este gol!'}, status=400)
-
-            # Folosim transaction.atomic pentru a ne asigura că dacă o inserare eșuează, nu se salvează nimic pe jumătate
-            with transaction.atomic():
-                
-                # Verificăm dacă am primit un ID de masă și dacă acesta corespunde unei mese reale
-                masa_obj = None
-                if masa_id:
-                    try:
-                        masa_obj = Masa.objects.get(id=masa_id)
-                    except (Masa.DoesNotExist, ValueError):
-                        # Dacă ID-ul mesei e invalid, comanda va fi fără masă (la pachet)
-                        pass
-
-                # Creăm comanda, legând-o de masă dacă a fost găsită
-                comanda = Comanda.objects.create(total=0, masa=masa_obj)
-                total_comanda = 0
-
-                for item in cart_items:
-                    produs = Produs.objects.get(id=item['id'])
-                    cantitate = int(item['quantity'])
-                    pret_unitar = produs.pret # Prețul este luat direct din DB, sigur și corect
-                    
-                    ElementComanda.objects.create(
-                        comanda=comanda, produs=produs,
-                        cantitate=cantitate, pret_unitar=pret_unitar
-                    )
-                    total_comanda += (pret_unitar * cantitate)
-                
-                comanda.total = total_comanda
-                comanda.save()
-            return JsonResponse({'success': True, 'comanda_id': comanda.id})
-        except Produs.DoesNotExist:
-            return JsonResponse({'error': 'Unul dintre produse nu mai există în meniu.'}, status=400)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
-    return JsonResponse({'error': 'Metodă nepermisă'}, status=405)
-
-@login_required
-def schimba_status_comanda(request, comanda_id):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            nou_status = data.get('status')
-            comanda = Comanda.objects.get(id=comanda_id)
+        with transaction.atomic():
+            masa = Masa.objects.filter(id=masa_id).first() if masa_id else None
+            comanda = Comanda.objects.create(masa=masa, status='noua')
             
-            # Dacă statusul devine "in_preparare", scădem ingredientele din stoc
-            if nou_status == 'in_preparare' and comanda.status not in ['in_preparare', 'servita']:
-                with transaction.atomic():
-                    for element in comanda.elemente.all():
-                        for reteta in element.produs.ingrediente_reteta.all():
-                            ingredient = reteta.ingredient
-                            cantitate_totala = reteta.cantitate_necesara * element.cantitate
-                            ingredient.cantitate_stoc -= cantitate_totala
-                            ingredient.save()
-            
-            comanda.status = nou_status
-            comanda.save()
-            return JsonResponse({'success': True})
-        except Comanda.DoesNotExist:
-            return JsonResponse({'error': 'Comanda nu exista'}, status=404)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
-    return JsonResponse({'error': 'Metoda nepermisa'}, status=405)
+            for item in cart_items:
+                produs = Produs.objects.get(id=item['id'])
+                ElementComanda.objects.create(
+                    comanda=comanda,
+                    produs=produs,
+                    cantitate=item['quantity']
+                )
+        return JsonResponse({'comanda_id': comanda.id})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@require_POST
+def schimba_status(request, id):
+    try:
+        data = json.loads(request.body)
+        comanda = Comanda.objects.get(id=id)
+        comanda.status = data.get('status', comanda.status)
+        comanda.save()
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
