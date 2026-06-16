@@ -43,7 +43,13 @@
     <!-- Continutul Principal al Meniului -->
     <div class="container mb-5">
         <div class="d-flex justify-content-between align-items-end mt-4 mb-4">
-            <h2 class="brand-font mb-0">Comandă Acum</h2>
+             <h2 class="brand-font mb-0">
+                {% if masa %}
+                    Meniu pentru Masa {{ masa.nr_masa }}
+                {% else %}
+                    Comandă Acum
+                {% endif %}
+            </h2>
             <p class="text-muted mb-0 d-none d-md-block">Alege din selecția noastră premium</p>
         </div>
 
@@ -109,6 +115,17 @@
                 <h6 class="brand-font mb-2" style="color: var(--accent-gold);"><i class="fa-solid fa-bell-concierge"></i> Ospătarul Virtual:</h6>
                 <p id="ai-suggestion-text" class="small text-muted mb-2"></p>
                 <button id="btn-add-ai-suggestion" class="btn btn-sm w-100 ai-pulse-btn" style="border: 1px solid var(--accent-gold); color: var(--accent-gold); background: transparent; transition: 0.3s; font-weight: bold;"></button>
+            </div>
+
+            <!-- SELECTOR MANUAL DE MASĂ -->
+            <div class="mt-3 mb-2">
+                <label for="masa-selector" class="form-label text-muted fw-bold" style="font-size: 0.85rem;">Locație Servire / Masă:</label>
+                <select id="masa-selector" class="form-select" style="border-radius: 8px; border: 1px solid var(--border-subtle); background-color: #faf9f7; cursor: pointer;">
+                    <option value="">🥡 La Pachet / Fără Masă</option>
+                    {% for m in mese %}
+                        <option value="{{ m.id }}" {% if masa and masa.id == m.id %}selected{% endif %}>🍽️ Masa {{ m.nr_masa }}</option>
+                    {% endfor %}
+                </select>
             </div>
 
             <!-- Sectiunea de Total si Buton Checkout -->
