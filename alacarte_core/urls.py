@@ -12,4 +12,8 @@ urlpatterns = [
     path('plaseaza-comanda/', views.plaseaza_comanda),
     path('schimba-status/<int:id>/', views.schimba_status),
     path('ai-recomandare/', views.ai_recomandare, name='ai_recomandare'),
+    
+    # === AGENT AI 2: Rute noi ===
+    path('toggle-produs/<int:id>/', views.toggle_disponibilitate, name='toggle_produs'),
+    path('ai-predictie-kds/', views.ai_predictie_kds, name='ai_predictie_kds'),
 ]

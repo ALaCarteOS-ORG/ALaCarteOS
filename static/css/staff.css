@@ -173,6 +173,151 @@ body {
 
 /* SWITCH PENTRU MODULUL 86 */
 .form-check-input:checked { 
-    background-color: var(--status-urgent); 
-    border-color: var(--status-urgent); 
+    background-color: var(--status-ready); 
+    border-color: var(--status-ready); 
+}
+
+/* SWITCH DEZACTIVAT (EPUIZAT) */
+.form-check-input:not(:checked) {
+    background-color: #e8e6e1;
+    border-color: #ccc;
+}
+
+
+/* ===========================================================================
+   AGENT AI 2 — Toast Notifications
+   =========================================================================== */
+
+.kds-toast-container {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 420px;
+    pointer-events: none;
+}
+
+.kds-toast {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 18px;
+    border-radius: 4px;
+    border-left: 4px solid transparent;
+    background-color: var(--nav-bg);
+    color: #e0e0e0;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    font-size: 0.85rem;
+    line-height: 1.4;
+    transform: translateX(120%);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    pointer-events: auto;
+}
+
+.kds-toast-show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.kds-toast-hide {
+    transform: translateX(120%);
+    opacity: 0;
+}
+
+.kds-toast-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.kds-toast-body {
+    flex-grow: 1;
+}
+
+.kds-toast-body strong {
+    color: white;
+}
+
+.kds-toast-close {
+    background: none;
+    border: none;
+    color: #777;
+    cursor: pointer;
+    padding: 0;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    transition: color 0.2s;
+}
+
+.kds-toast-close:hover {
+    color: white;
+}
+
+/* Toast Variants */
+.kds-toast-success {
+    border-left-color: var(--status-ready);
+}
+.kds-toast-success .kds-toast-icon {
+    color: var(--status-ready);
+}
+
+.kds-toast-warning {
+    border-left-color: var(--status-prep);
+}
+.kds-toast-warning .kds-toast-icon {
+    color: var(--status-prep);
+}
+
+.kds-toast-danger {
+    border-left-color: var(--status-urgent);
+}
+.kds-toast-danger .kds-toast-icon {
+    color: #ff6b6b;
+}
+
+.kds-toast-info {
+    border-left-color: var(--accent-gold);
+}
+.kds-toast-info .kds-toast-icon {
+    color: var(--accent-gold);
+}
+
+
+/* ===========================================================================
+   AGENT AI 2 — AI Pulse Animation (Navbar Indicator)
+   =========================================================================== */
+
+.ai-pulse {
+    animation: ai-pulse-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes ai-pulse-glow {
+    0%, 100% { 
+        opacity: 1; 
+        text-shadow: 0 0 0 transparent; 
+    }
+    50% { 
+        opacity: 0.7; 
+        text-shadow: 0 0 8px rgba(220, 179, 123, 0.6); 
+    }
+}
+
+
+/* ===========================================================================
+   AGENT AI 2 — AI Alert High (Predicție cu risc ridicat)
+   =========================================================================== */
+
+.ai-alert-high {
+    background-color: rgba(139, 30, 30, 0.05);
+    border-color: rgba(139, 30, 30, 0.2) !important;
+    border-radius: 4px;
+    padding: 12px;
+}
+
+.ai-alert-high p {
+    color: var(--status-urgent) !important;
 }
