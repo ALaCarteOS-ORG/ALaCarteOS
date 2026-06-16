@@ -22,7 +22,7 @@
     <!-- CSS -->
     <link rel="stylesheet" href="{% static 'css/general.css' %}">
 </head>
-<body data-masa-id="{% if masa %}{{ masa.id }}{% endif %}">
+<body>
 
     <!-- Bara nav fixa -->
     <nav class="navbar navbar-expand-lg fixed-top navbar-app">
@@ -43,13 +43,7 @@
     <!-- Continutul Principal al Meniului -->
     <div class="container mb-5">
         <div class="d-flex justify-content-between align-items-end mt-4 mb-4">
-            <h2 class="brand-font mb-0">
-                {% if masa %}
-                    Meniu pentru Masa {{ masa.nr_masa }}
-                {% else %}
-                    Comandă Acum
-                {% endif %}
-            </h2>
+            <h2 class="brand-font mb-0">Comandă Acum</h2>
             <p class="text-muted mb-0 d-none d-md-block">Alege din selecția noastră premium</p>
         </div>
 
@@ -110,20 +104,15 @@
             <div class="flex-grow-1 overflow-auto" id="cart-items-container">
             </div>
 
+            <!-- Sectiunea Ospatar Virtual AI -->
+            <div id="ai-recommendation-container" class="mt-3 p-3 rounded" style="background-color: rgba(220, 179, 123, 0.1); border: 1px dashed var(--accent-gold); display: none;">
+                <h6 class="brand-font mb-2" style="color: var(--accent-gold);"><i class="fa-solid fa-bell-concierge"></i> Ospătarul Virtual:</h6>
+                <p id="ai-suggestion-text" class="small text-muted mb-2"></p>
+                <button id="btn-add-ai-suggestion" class="btn btn-sm w-100 ai-pulse-btn" style="border: 1px solid var(--accent-gold); color: var(--accent-gold); background: transparent; transition: 0.3s; font-weight: bold;"></button>
+            </div>
+
             <!-- Sectiunea de Total si Buton Checkout -->
             <div class="border-top pt-3 mt-3">
-                
-                <!-- SELECTOR MANUAL DE MASĂ -->
-                <div class="mb-3">
-                    <label for="masa-selector" class="form-label text-muted fw-bold" style="font-size: 0.85rem;">Locație Servire / Masă:</label>
-                    <select id="masa-selector" class="form-select" style="border-radius: 8px; border: 1px solid var(--border-subtle); background-color: #faf9f7; cursor: pointer;">
-                        <option value="">🥡 La Pachet / Fără Masă</option>
-                        {% for m in mese %}
-                            <option value="{{ m.id }}" {% if masa and masa.id == m.id %}selected{% endif %}>🍽️ Masa {{ m.nr_masa }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
                 <div class="d-flex justify-content-between mb-3">
                     <span class="fs-5 text-muted">Total estimat:</span>
                     <span class="fs-4 fw-bold" style="color: var(--primary-dark);" id="cart-total-price">0 Lei</span>

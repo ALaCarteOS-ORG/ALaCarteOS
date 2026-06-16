@@ -63,6 +63,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function saveAndRender() {
         localStorage.setItem('alacarte_cart', JSON.stringify(cart));
         renderCart();
+
+        // --- NOU: Actualizare live a AI-ului la orice modificare a coșului ---
+        const cartPanelElement = document.getElementById('cartPanel');
+        if (cartPanelElement && cartPanelElement.classList.contains('show')) {
+            if (cart.length > 0) {
+                fetchAiRecommendation(); // Cere o recomandare nouă
+            } else {
+                document.getElementById('ai-recommendation-container').style.display = 'none';
+            }
+        }
     }
 
     // 7. Funcția care desenează produsele în coș
@@ -159,5 +169,61 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnCheckout.disabled = false;
             }
         });
+    }
+
+    // 9. INTEGRARE AI: Ospătarul Virtual se activează când se deschide coșul
+    const cartPanelElement = document.getElementById('cartPanel');
+    if (cartPanelElement) {
+        cartPanelElement.addEventListener('shown.bs.offcanvas', () => {
+            if (cart.length > 0) {
+                fetchAiRecommendation();
+            } else {
+                document.getElementById('ai-recommendation-container').style.display = 'none';
+            }
+        });
+    }
+
+    async function fetchAiRecommendation() {
+        const aiContainer = document.getElementById('ai-recommendation-container');
+        const aiText = document.getElementById('ai-suggestion-text');
+        const aiBtn = document.getElementById('btn-add-ai-suggestion');
+        
+        aiContainer.style.display = 'block';
+        aiText.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analizez comanda pentru asocieri culinare...';
+        aiBtn.style.display = 'none';
+
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const response = await fetch('/ai-recomandare/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ cart: cart })
+            });
+
+            const data = await response.json();
+            if (response.ok && data.recomandare) {
+                aiText.innerHTML = `<strong>Recomandare:</strong> ${data.recomandare}`;
+                aiBtn.style.display = 'block';
+                aiBtn.disabled = false; // Resetăm starea butonului la o nouă recomandare
+                aiBtn.innerText = `+ Adaugă ${data.produs_recomandat.nume} (${data.produs_recomandat.pret} Lei)`;
+                
+                aiBtn.onclick = () => {
+                    addToCart(data.produs_recomandat.id.toString(), data.produs_recomandat.nume, data.produs_recomandat.pret);
+                    aiBtn.innerText = "Adăugat cu succes!";
+                    aiBtn.disabled = true;
+                };
+            } else {
+                // Afisam eroarea în loc să o ascundem, pentru a înțelege problema reală
+                aiText.innerHTML = `<span class="text-danger"><i class="fa-solid fa-triangle-exclamation"></i> Eroare: ${data.error || 'Răspuns invalid.'}</span>`;
+                aiBtn.style.display = 'none';
+            }
+        } catch (error) {
+            console.error("Eroare la obținerea recomandării AI:", error);
+            aiText.innerHTML = `<span class="text-danger"><i class="fa-solid fa-plug-circle-exclamation"></i> Conexiunea cu agentul AI a eșuat.</span>`;
+            aiBtn.style.display = 'none';
+        }
     }
 });
