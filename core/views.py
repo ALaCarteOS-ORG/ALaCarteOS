@@ -153,8 +153,10 @@ def dashboard_staff(request):
     else:
         return HttpResponse("Acces interzis! Doar personalul autorizat are acces.", status=403)
 
+
 def pagina_autentificare(request):
     return render(request, 'index.html')
+
 
 def login_staff(request):
     if request.method == 'POST':
@@ -174,9 +176,11 @@ def login_staff(request):
             
     return redirect('autentificare')
 
+
 def logout_staff(request):
     logout(request)
     return redirect('autentificare')
+
 
 def pagina_meniu(request, nr_masa=None):
     produse = Produs.objects.filter(disponibil=True)
@@ -195,7 +199,8 @@ def ai_recomandare(request):
         # === MOD DEMO ===
         if settings.DEMO_MODE:
             produse_disponibile = Produs.objects.filter(disponibil=True).exclude(id__in=[int(item['id']) for item in json.loads(request.body).get('cart', [])])
-            if not produse_disponibile.exists(): return JsonResponse({'error': 'Nu sunt alte produse disponibile'}, status=404)
+            if not produse_disponibile.exists():
+                return JsonResponse({'error': 'Nu sunt alte produse disponibile'}, status=404)
             prod_final = random.choice(list(produse_disponibile))
             motiv = f"Pentru a completa perfect aromele, vă recomandăm {prod_final.nume}."
             return JsonResponse({
@@ -215,7 +220,7 @@ def ai_recomandare(request):
         produse_disponibile = Produs.objects.filter(disponibil=True).exclude(id__in=id_produse_cos)
         
         if not produse_disponibile.exists():
-             return JsonResponse({'error': 'Nu sunt alte produse disponibile'}, status=404)
+            return JsonResponse({'error': 'Nu sunt alte produse disponibile'}, status=404)
              
         meniu_text = ", ".join([f"ID: {p.id} | Nume: {p.nume} | Tip: {p.tip_produs}" for p in produse_disponibile])
         
@@ -270,12 +275,12 @@ def ai_recomandare(request):
         error_msg = str(e)
         print(f"Eroare AI API: {error_msg}")
         if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
-             # Fallback silentios de siguranta daca am ramas fara cereri
-             prod_final = produse_disponibile.first()
-             return JsonResponse({
-                 'recomandare': f"Pentru a echilibra perfect comanda, vă recomandăm să adăugați {prod_final.nume}.",
-                 'produs_recomandat': {'id': str(prod_final.id), 'nume': prod_final.nume, 'pret': float(prod_final.pret)}
-             })
+            # Fallback silentios de siguranta daca am ramas fara cereri
+            prod_final = produse_disponibile.first()
+            return JsonResponse({
+                'recomandare': f"Pentru a echilibra perfect comanda, vă recomandăm să adăugați {prod_final.nume}.",
+                'produs_recomandat': {'id': str(prod_final.id), 'nume': prod_final.nume, 'pret': float(prod_final.pret)}
+            })
         return JsonResponse({'error': error_msg}, status=500)
 
 
@@ -543,6 +548,7 @@ def ai_predictie_kds(request):
             'error': error_msg,
             'predictie': predictie_fallback
         }, status=500)
+
 
 @login_required
 def ai_raport_zi(request):
