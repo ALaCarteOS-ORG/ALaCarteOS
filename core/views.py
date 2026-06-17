@@ -231,7 +231,7 @@ def ai_recomandare(request):
         )
         
         # 4. Generăm răspunsul cu modelul rapid de la Gemini
-        response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
+        response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
         
         # 5. Curățăm textul (evităm eroarea clasică de formatare a AI-urilor cu ```json)
         raw_text = response.text.strip()
@@ -495,7 +495,7 @@ def ai_predictie_kds(request):
         )
         
         # 3. Generăm răspunsul cu Gemini
-        response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
+        response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
         
         raw_text = response.text.strip()
         # Curățăm markdown dacă este cazul
@@ -600,7 +600,7 @@ def ai_raport_zi(request):
         )
 
         # 3. Apelăm Gemini
-        response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
+        response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
         
         return JsonResponse({'success': True, 'raport': response.text})
         
