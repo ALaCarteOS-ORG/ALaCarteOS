@@ -129,5 +129,5 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
-    BASE_DIR / 'src', # Adăugat pentru ca Django să citească și scripturile din folderul src
+    BASE_DIR / 'src',  # Adăugat pentru ca Django să citească și scripturile din folderul src
 ]

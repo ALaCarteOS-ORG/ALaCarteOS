@@ -1,9 +1,9 @@
 from django.contrib import admin
 from django.urls import path
-from core import views # Importăm vederile din aplicația creată
+from core import views  # Importăm vederile din aplicația creată
 
 urlpatterns = [
-    path('', views.pagina_autentificare, name='autentificare'), # Pagina principala
+    path('', views.pagina_autentificare, name='autentificare'),  # Pagina principala
     path('admin/', admin.site.urls),
     path('login-staff/', views.login_staff, name='login_staff'),
     path('logout-staff/', views.logout_staff, name='logout_staff'),

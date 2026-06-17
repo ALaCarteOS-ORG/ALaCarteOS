@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from decimal import Decimal
 import uuid
 
+
 class ProfilStaff(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     nume_angajat = models.CharField(max_length=100)
@@ -15,12 +16,14 @@ class ProfilStaff(models.Model):
     def __str__(self):
         return f"{self.nume_angajat} - {self.get_rol_display()}"
 
+
 class Masa(models.Model):
     nr_masa = models.IntegerField(unique=True)
     token_qr = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
 
     def __str__(self):
         return f"Masa {self.nr_masa}"
+
 
 class Produs(models.Model):
     nume = models.CharField(max_length=100)
@@ -58,6 +61,7 @@ class Produs(models.Model):
         
         return len(ingrediente_lipsa) == 0, ingrediente_lipsa
 
+
 class Ingredient(models.Model):
     nume = models.CharField(max_length=100)
     cantitate_stoc = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
@@ -67,6 +71,7 @@ class Ingredient(models.Model):
     def __str__(self):
         return f"{self.nume} - Stoc: {self.cantitate_stoc} {self.unitate_masura}"
 
+
 class IngredientReteta(models.Model):
     produs = models.ForeignKey(Produs, related_name='ingrediente_reteta', on_delete=models.CASCADE)
     ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
@@ -74,6 +79,7 @@ class IngredientReteta(models.Model):
 
     def __str__(self):
         return f"{self.cantitate_necesara} {self.ingredient.unitate_masura} {self.ingredient.nume} -> {self.produs.nume}"
+
 
 class Comanda(models.Model):
     masa = models.ForeignKey(Masa, on_delete=models.SET_NULL, null=True, blank=True)
@@ -142,6 +148,7 @@ class Comanda(models.Model):
             'ingrediente_sub_prag': list(ingrediente_sub_prag_dict.values()),
             'produse_dezactivate': produse_dezactivate
         }
+
 
 class ElementComanda(models.Model):
     comanda = models.ForeignKey(Comanda, related_name='elemente', on_delete=models.CASCADE)
