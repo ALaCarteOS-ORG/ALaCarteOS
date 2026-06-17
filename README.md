@@ -47,7 +47,15 @@ Pentru a rula și dezvolta acest proiect local, este necesar un mediu configurat
    pip install -r requirements.txt
 
 4. Configurarea variabilelor de mediu:
-   Creați un fișier denumit .env în directorul rădăcină al proiectului. Definiți variabilele de configurare necesare, în mod special cheile API pentru agentul AI (ex. GEMINI_API_KEY). Vă puteți ghida după structura fișierului .env.example.
+   Creați un fișier denumit `.env` (cu punct la început) în directorul rădăcină al proiectului. O metodă simplă este să copiați fișierul de exemplu:
+   
+   Pe mediul Windows:
+   copy .env.example .env
+
+   Pe mediul macOS/Linux:
+   cp .env.example .env
+
+   După creare, deschideți fișierul `.env` și completați variabilele de configurare necesare, în mod special cheile API pentru agentul AI (`GEMINI_API_KEY`) și URL-ul bazei de date.
 
 5. Rularea migrațiilor pentru crearea schemei bazei de date:
    python manage.py migrate
