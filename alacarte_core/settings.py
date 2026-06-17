@@ -19,7 +19,7 @@ import dj_database_url
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 
 # Quick-start development settings - unsuitable for production
@@ -30,6 +30,10 @@ SECRET_KEY = 'django-insecure-3z2oz4#-h*difibao4@y*&znem7@i4v$h^#4w^phi4gk^#qpzv
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+
+# MOD DEMO: Setează pe True pentru a folosi răspunsuri pre-definite în loc de apeluri reale la AI
+# Acest lucru garantează că demo-ul funcționează impecabil, fără a consuma cota API.
+DEMO_MODE = False
 
 ALLOWED_HOSTS = []
 
@@ -84,7 +88,7 @@ WSGI_APPLICATION = 'alacarte_core.wsgi.application'
 DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get('DATABASE_URL'),
-        conn_max_age=600,
+        conn_max_age=0,
     )
 }
 
