@@ -1,14 +1,18 @@
 import json
 import os
+import random
 from datetime import timedelta
+from decimal import Decimal
+from django.conf import settings
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import F, Sum
 from django.utils import timezone
+from django.core.cache import cache
 from .models import Produs, Comanda, ElementComanda, Masa, Ingredient
 
 # === IMPORTURI PENTRU GEMINI SI .ENV ===
@@ -18,7 +22,7 @@ from google import genai
 from dotenv import load_dotenv
 
 # 1. Încărcăm variabilele de mediu (inclusiv GEMINI_API_KEY)
-load_dotenv()
+load_dotenv(override=True)
 
 # 2. Configurăm API-ul Google Gemini
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
@@ -118,6 +122,15 @@ def calculeaza_tendinte():
 @login_required
 def dashboard_staff(request):
     if request.user.is_staff or request.user.is_superuser or request.user.groups.filter(name__in=['Staff', 'Bucatar']).exists():
+        
+        # === ALGORITM PRIORITIZARE AUTOMATĂ ===
+        # Marcăm ca "urgente" comenzile active mai vechi de 20 minute
+        prag_timp = timezone.now() - timedelta(minutes=20)
+        Comanda.objects.exclude(
+            status__in=['servita', 'platita', 'anulata']
+        ).filter(urgenta=False, data_creare__lte=prag_timp).update(urgenta=True)
+        # ======================================
+
         comenzi = Comanda.objects.exclude(
             status__in=['servita', 'platita', 'anulata']
         ).order_by('-urgenta', 'data_creare').select_related('masa').prefetch_related('elemente__produs')
@@ -161,6 +174,10 @@ def login_staff(request):
             
     return redirect('autentificare')
 
+def logout_staff(request):
+    logout(request)
+    return redirect('autentificare')
+
 def pagina_meniu(request, nr_masa=None):
     produse = Produs.objects.filter(disponibil=True)
     mese = Masa.objects.all()
@@ -175,6 +192,17 @@ def pagina_meniu(request, nr_masa=None):
 @require_POST
 def ai_recomandare(request):
     try:
+        # === MOD DEMO ===
+        if settings.DEMO_MODE:
+            produse_disponibile = Produs.objects.filter(disponibil=True).exclude(id__in=[int(item['id']) for item in json.loads(request.body).get('cart', [])])
+            if not produse_disponibile.exists(): return JsonResponse({'error': 'Nu sunt alte produse disponibile'}, status=404)
+            prod_final = random.choice(list(produse_disponibile))
+            motiv = f"Pentru a completa perfect aromele, vă recomandăm {prod_final.nume}."
+            return JsonResponse({
+                'recomandare': motiv,
+                'produs_recomandat': {'id': str(prod_final.id), 'nume': prod_final.nume, 'pret': float(prod_final.pret)}
+            })
+        # ================
         data = json.loads(request.body)
         cart_items = data.get('cart', [])
         
@@ -203,7 +231,7 @@ def ai_recomandare(request):
         )
         
         # 4. Generăm răspunsul cu modelul rapid de la Gemini
-        response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+        response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
         
         # 5. Curățăm textul (evităm eroarea clasică de formatare a AI-urilor cu ```json)
         raw_text = response.text.strip()
@@ -239,8 +267,16 @@ def ai_recomandare(request):
         })
         
     except Exception as e:
-        print(f"Eroare AI API: {str(e)}") # Pentru vizibilitate în terminal
-        return JsonResponse({'error': str(e)}, status=500)
+        error_msg = str(e)
+        print(f"Eroare AI API: {error_msg}")
+        if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
+             # Fallback silentios de siguranta daca am ramas fara cereri
+             prod_final = produse_disponibile.first()
+             return JsonResponse({
+                 'recomandare': f"Pentru a echilibra perfect comanda, vă recomandăm să adăugați {prod_final.nume}.",
+                 'produs_recomandat': {'id': str(prod_final.id), 'nume': prod_final.nume, 'pret': float(prod_final.pret)}
+             })
+        return JsonResponse({'error': error_msg}, status=500)
 
 
 # ===========================================================================
@@ -395,18 +431,39 @@ def ai_predictie_kds(request):
     bazate pe datele curente ale restaurantului: comenzi active, stocuri,
     tendințe, ora zilei. Răspunde cu text de predicție și sugestii.
     """
+    # Colectăm datele operaționale indiferent de mod
+    acum = timezone.now()
+    ora_curenta = acum.strftime("%H:%M")
+    comenzi_active = Comanda.objects.exclude(status__in=['servita', 'platita', 'anulata']).count()
+    tendinte = calculeaza_tendinte()
+
+    # === MOD DEMO ===
+    if settings.DEMO_MODE:
+        predictie_mock = f"Atenție la stația grill, cererea pentru {tendinte[0]['nume']} este în creștere." if tendinte else "Fluxul de comenzi este constant. Mențineți ritmul."
+        rezultat_final = {
+            'success': True, 'predictie': predictie_mock,
+            'statie_recomandata': 'grill' if tendinte and 'friptura' in tendinte[0]['nume'].lower() else 'generală',
+            'nivel_alerta': 'mediu' if comenzi_active > 5 else 'scazut', 'ora_generare': ora_curenta,
+            'tendinte_sumar': [{'nume': t['nume'], 'procent': t['procent'], 'directie': t['directie']} for t in tendinte[:4]]
+        }
+        return JsonResponse(rezultat_final)
+    # ================
     try:
         # 1. Colectăm datele operaționale
         acum = timezone.now()
         ora_curenta = acum.strftime("%H:%M")
         zi_saptamana = ['Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă', 'Duminică'][acum.weekday()]
         
+        # --- CACHE CHECK (Protejăm limitele gratuite API) ---
+        cached_data = cache.get('ai_kds_predictie')
+        if cached_data:
+            # Returnăm predictia salvată anterior, doar îi actualizăm ora afișată
+            cached_data['ora_generare'] = ora_curenta
+            return JsonResponse(cached_data)
+        # ----------------------------------------------------
+
         # Comenzi active
-        comenzi_active = Comanda.objects.exclude(
-            status__in=['servita', 'platita', 'anulata']
-        ).count()
-        
-        # Produse cele mai comandate azi
+        # (Mutat mai sus pentru a fi disponibil și în Modul Demo)
         tendinte = calculeaza_tendinte()
         top_produse = ", ".join([f"{t['nume']} ({t['cantitate_azi']} porții, {t['procent']}%)" for t in tendinte[:4]]) if tendinte else "Fără date suficiente"
         
@@ -438,7 +495,7 @@ def ai_predictie_kds(request):
         )
         
         # 3. Generăm răspunsul cu Gemini
-        response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+        response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
         
         raw_text = response.text.strip()
         # Curățăm markdown dacă este cazul
@@ -459,19 +516,97 @@ def ai_predictie_kds(request):
                 'nivel_alerta': 'mediu' if comenzi_active > 5 else 'scazut'
             }
         
-        return JsonResponse({
+        rezultat_final = {
             'success': True,
             'predictie': rezultat.get('predictie', ''),
             'statie_recomandata': rezultat.get('statie_recomandata', ''),
             'nivel_alerta': rezultat.get('nivel_alerta', 'scazut'),
             'ora_generare': ora_curenta,
             'tendinte_sumar': [{'nume': t['nume'], 'procent': t['procent'], 'directie': t['directie']} for t in tendinte[:4]]
-        })
+        }
+        
+        # Salvăm rezultatul în memorie pentru 15 minute (900 secunde)
+        cache.set('ai_kds_predictie', rezultat_final, 900)
+        
+        return JsonResponse(rezultat_final)
         
     except Exception as e:
-        print(f"[AI KDS] Eroare predicție: {str(e)}")
+        error_msg = str(e)
+        print(f"[AI KDS] Eroare predicție: {error_msg}")
+        
+        predictie_fallback = 'Sistemul AI este temporar indisponibil. Monitorizați manual comenzile.'
+        if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
+            predictie_fallback = 'Limita zilnică AI atinsă. Folosim rutine standard de KDS.'
+
         return JsonResponse({
             'success': False,
-            'error': str(e),
-            'predictie': 'Sistemul AI este temporar indisponibil. Monitorizați manual comenzile.'
+            'error': error_msg,
+            'predictie': predictie_fallback
         }, status=500)
+
+@login_required
+def ai_raport_zi(request):
+    """
+    Generăm Raportul de Sfârșit de Zi: AI-ul analizează volumele zilei curente 
+    (vânzări, încasări, produse de top, stocuri) și generează un text structurat.
+    """
+    try:
+        # Colectăm datele zilei curente indiferent de mod
+        azi_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        comenzi_azi = Comanda.objects.filter(data_creare__gte=azi_start)
+        total_comenzi = comenzi_azi.count()
+        comenzi_anulate = comenzi_azi.filter(status='anulata').count()
+        comenzi_finalizate = comenzi_azi.filter(status__in=['servita', 'platita'])
+        venit_total = comenzi_finalizate.aggregate(total_venit=Sum('total'))['total_venit'] or 0
+        elemente_azi = ElementComanda.objects.filter(comanda__in=comenzi_finalizate)
+        top_produse = elemente_azi.values('produs__nume').annotate(cantitate_totala=Sum('cantitate')).order_by('-cantitate_totala')[:3]
+        top_produse_text = ", ".join([f"{p['produs__nume']} ({p['cantitate_totala']} porții)" for p in top_produse]) if top_produse else "Nu există date de vânzări"
+        stocuri_critice = Ingredient.objects.filter(cantitate_stoc__lte=F('prag_alerta')).values_list('nume', flat=True)
+        stocuri_text = ", ".join(stocuri_critice) if stocuri_critice else "Toate stocurile sunt în parametri optimi."
+
+        # === MOD DEMO ===
+        if settings.DEMO_MODE:
+            raport_mock = (f"**1. Rezumatul Vânzărilor**\nO zi productivă! Am procesat un total de **{total_comenzi} comenzi**, cu un venit estimat de **{venit_total:.2f} Lei**. Numărul de comenzi anulate a fost de {comenzi_anulate}, un indicator bun al eficienței operaționale.\n\n**2. Performanța Meniului**\nVedetele zilei au fost: **{top_produse_text}**. Aceste preparate continuă să fie preferatele clienților noștri.\n\n**3. Atenționări pentru Mâine**\nPentru a asigura un flux lin mâine, vă rog să acordați atenție următoarelor stocuri: **{stocuri_text}**. Recomandăm aprovizionarea prioritară a acestora.")
+            return JsonResponse({'success': True, 'raport': raport_mock})
+        # ================
+        # 1. Colectăm datele zilei curente (de la ora 00:00 la ora curentă)
+        azi_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        comenzi_azi = Comanda.objects.filter(data_creare__gte=azi_start)
+        
+        total_comenzi = comenzi_azi.count()
+        comenzi_anulate = comenzi_azi.filter(status='anulata').count()
+        comenzi_finalizate = comenzi_azi.filter(status__in=['servita', 'platita'])
+        
+        venit_total = comenzi_finalizate.aggregate(total_venit=Sum('total'))['total_venit'] or 0
+        
+        # Cele mai vândute produse de azi
+        elemente_azi = ElementComanda.objects.filter(comanda__in=comenzi_finalizate)
+        top_produse = elemente_azi.values('produs__nume').annotate(cantitate_totala=Sum('cantitate')).order_by('-cantitate_totala')[:3]
+        top_produse_text = ", ".join([f"{p['produs__nume']} ({p['cantitate_totala']} porții)" for p in top_produse]) if top_produse else "Nu există date de vânzări"
+
+        # Probleme stoc
+        stocuri_critice = Ingredient.objects.filter(cantitate_stoc__lte=F('prag_alerta')).values_list('nume', flat=True)
+        stocuri_text = ", ".join(stocuri_critice) if stocuri_critice else "Toate stocurile sunt în parametri optimi."
+
+        # 2. Construim prompt-ul
+        prompt = (
+            f"Ești managerul asistent (Agent AI) al unui restaurant fine-dining. Generează un raport executiv scurt, prietenos dar profesional, pentru sfârșitul zilei.\n\n"
+            f"Datele de astăzi:\n"
+            f"- Total comenzi procesate: {total_comenzi} (din care {comenzi_anulate} anulate)\n"
+            f"- Venit total generat (din comenzile servite/plătite): {venit_total} Lei\n"
+            f"- Top 3 cele mai vândute produse astăzi: {top_produse_text}\n"
+            f"- Situația stocurilor pentru mâine: {stocuri_text}\n\n"
+            f"Structurează raportul în 3 paragrafe scurte cu titluri (ex: 1. Rezumatul Vânzărilor, 2. Performanța Meniului, 3. Atenționări pentru Mâine). Fii concis."
+        )
+
+        # 3. Apelăm Gemini
+        response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
+        
+        return JsonResponse({'success': True, 'raport': response.text})
+        
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[AI Raport] Eroare: {error_msg}")
+        if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
+            return JsonResponse({'success': False, 'error': 'Limita gratuită a modelului AI a fost atinsă temporar. Te rugăm să aștepți sau să încerci din nou mai târziu.'}, status=429)
+        return JsonResponse({'success': False, 'error': error_msg}, status=500)
