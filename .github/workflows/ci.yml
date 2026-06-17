@@ -1,0 +1,125 @@
+name: ALaCarteOS CI
+
+# ═══════════════════════════════════════════════════════════
+#  Când rulează: la push pe main/develop și la Pull Requests
+# ═══════════════════════════════════════════════════════════
+on:
+  push:
+    branches: [main, develop, master]
+  pull_request:
+    branches: [main, develop, master]
+
+jobs:
+  # ─────────────────────────────────────────────────────────
+  #  JOB 1: Lint & Syntax Check
+  #  Verifică rapid că nu ai erori de sintaxă sau import-uri sparte
+  # ─────────────────────────────────────────────────────────
+  lint:
+    name: 🔍 Lint & Syntax
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout cod
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Instalare dependențe
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8
+
+      - name: Flake8 — verificare cod (moderat)
+        run: |
+          # E501 = linie prea lungă (ignorăm, nu suntem hardcore)
+          # W503 = line break înainte de operator (stylistic)
+          # E402 = import nu la început de fișier (Django face asta des)
+          # F401 = import nefolosit (uneori e necesar pentru side effects)
+          flake8 . \
+            --exclude=venv,migrations,__pycache__,.git,node_modules,db,Documentatie \
+            --ignore=E501,W503,E402,F401,W291,W292,W293,E303,W504 \
+            --max-line-length=150 \
+            --count \
+            --statistics
+
+  # ─────────────────────────────────────────────────────────
+  #  JOB 2: Django Tests
+  #  Rulează testele cu SQLite in-memory (fără bază externă)
+  # ─────────────────────────────────────────────────────────
+  test:
+    name: 🧪 Django Tests
+    runs-on: ubuntu-latest
+    needs: lint  # rulează doar dacă lint-ul trece
+
+    steps:
+      - name: Checkout cod
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Instalare dependențe
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verificare Django — system check
+        env:
+          DJANGO_SETTINGS_MODULE: alacarte_core.settings_test
+          GEMINI_API_KEY: fake-key-for-ci
+        run: |
+          python manage.py check --deploy 2>&1 || true  # non-blocking, doar informativ
+          python manage.py check
+
+      - name: Rulare migrări (verificare integritate modele)
+        env:
+          DJANGO_SETTINGS_MODULE: alacarte_core.settings_test
+          GEMINI_API_KEY: fake-key-for-ci
+        run: |
+          python manage.py makemigrations --check --dry-run
+          python manage.py migrate
+
+      - name: Rulare teste
+        env:
+          DJANGO_SETTINGS_MODULE: alacarte_core.settings_test
+          GEMINI_API_KEY: fake-key-for-ci
+        run: |
+          python manage.py test core --verbosity=2
+
+  # ─────────────────────────────────────────────────────────
+  #  JOB 3: Security Check (opțional, non-blocking)
+  #  Scanează dependențele pentru vulnerabilități cunoscute
+  # ─────────────────────────────────────────────────────────
+  security:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    needs: lint
+    continue-on-error: true  # Nu blochează merge-ul, doar avertizează
+
+    steps:
+      - name: Checkout cod
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Instalare dependențe
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pip-audit
+
+      - name: Audit dependențe
+        run: |
+          pip-audit --strict 2>&1 || echo "⚠️ Vulnerabilități detectate — verifică manual"
